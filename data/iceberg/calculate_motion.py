@@ -117,10 +117,26 @@ def calculate_motion(df):
     )
 
     # Calculate time difference in hours.
+        # Calculate time difference in hours.
     df["time_difference_hours"] = (
         df["Last Update"]
         - df["previous_date"]
     ).dt.total_seconds() / 3600
+
+    # Convert time difference to days.
+    df["time_difference_days"] = (
+        df["time_difference_hours"] / 24
+    )
+
+    # Mark observations that are close to the normal
+    # weekly reporting interval.
+    #
+    # 6-8 days is treated as a valid weekly interval.
+    df["valid_weekly_interval"] = (
+        df["time_difference_days"].between(6, 8)
+    )
+
+    # Calculate average movement speed.
 
     # Calculate average movement speed.
     df["speed_kmh"] = (
