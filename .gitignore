@@ -1,0 +1,10 @@
+# Local/raw research datasets
+data/iceberg/raw/
+data/sea_ice/raw/*
+!data/sea_ice/raw/.gitkeep
+# Large processed datasets
+data/iceberg/processed/
+data/sea_ice/processed/*
+!data/sea_ice/processed/.gitkeep
+data/sea_ice/predictions/*
+!data/sea_ice/predictions/.gitkeep
