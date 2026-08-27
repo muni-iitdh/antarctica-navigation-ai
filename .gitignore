@@ -8,3 +8,5 @@ data/sea_ice/processed/*
 !data/sea_ice/processed/.gitkeep
 data/sea_ice/predictions/*
 !data/sea_ice/predictions/.gitkeep
+__pycache__/
+*.pyc
