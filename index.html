@@ -140,6 +140,20 @@
         #routeButton:hover {
             background: #2696db;
         }
+        #selectStartButton,
+#selectEndButton {
+    background: #425563;
+    color: white;
+}
+
+#selectStartButton:hover,
+#selectEndButton:hover {
+    background: #526a78;
+}
+
+.map-selection-active {
+    outline: 2px solid #00d084;
+}
 
         #clearButton {
             background: #344955;
@@ -369,6 +383,35 @@
 
         </div>
 
+        </div>
+
+    <!-- MAP SELECTION -->
+
+    <div class="location-box">
+
+        <div class="location-title">
+            🗺️ Map Selection
+        </div>
+
+        <div class="subtitle">
+            You can either enter coordinates above
+            or select locations directly on the map.
+        </div>
+
+        <button
+            id="selectStartButton"
+            type="button"
+        >
+            📍 Click Map to Select Start
+        </button>
+
+        <button
+            id="selectEndButton"
+            type="button"
+        >
+            🎯 Click Map to Select Destination
+        </button>
+
     </div>
 
 
@@ -459,7 +502,146 @@ const routeLayer =
 
 let startMarker = null;
 let endMarker = null;
+// ========================================================
+// MAP CLICK SELECTION
+// ========================================================
 
+let selectionMode = null;
+
+
+// ========================================================
+// MAP CLICK HANDLER
+// ========================================================
+
+map.on(
+    "click",
+    function(event) {
+
+        if (!selectionMode) {
+            return;
+        }
+
+        const lat =
+            Number(
+                event.latlng.lat.toFixed(3)
+            );
+
+        const lon =
+            Number(
+                event.latlng.lng.toFixed(3)
+            );
+
+        if (selectionMode === "start") {
+
+            document.getElementById(
+                "startLat"
+            ).value = lat;
+
+            document.getElementById(
+                "startLon"
+            ).value = lon;
+
+            selectionMode = null;
+
+            document.getElementById(
+                "selectStartButton"
+            ).classList.remove(
+                "map-selection-active"
+            );
+
+            setStatus(
+                "Start selected from map"
+            );
+
+        }
+        else if (selectionMode === "destination") {
+
+            document.getElementById(
+                "endLat"
+            ).value = lat;
+
+            document.getElementById(
+                "endLon"
+            ).value = lon;
+
+            selectionMode = null;
+
+            document.getElementById(
+                "selectEndButton"
+            ).classList.remove(
+                "map-selection-active"
+            );
+
+            setStatus(
+                "Destination selected from map"
+            );
+        }
+
+        updateButton();
+    }
+);
+
+
+// ========================================================
+// MAP SELECTION BUTTONS
+// ========================================================
+
+document
+    .getElementById(
+        "selectStartButton"
+    )
+    .addEventListener(
+        "click",
+        function() {
+
+            selectionMode = "start";
+
+            document.getElementById(
+                "selectStartButton"
+            ).classList.add(
+                "map-selection-active"
+            );
+
+            document.getElementById(
+                "selectEndButton"
+            ).classList.remove(
+                "map-selection-active"
+            );
+
+            setStatus(
+                "Click the map to select START"
+            );
+        }
+    );
+
+
+document
+    .getElementById(
+        "selectEndButton"
+    )
+    .addEventListener(
+        "click",
+        function() {
+
+            selectionMode = "destination";
+
+            document.getElementById(
+                "selectEndButton"
+            ).classList.add(
+                "map-selection-active"
+            );
+
+            document.getElementById(
+                "selectStartButton"
+            ).classList.remove(
+                "map-selection-active"
+            );
+
+            setStatus(
+                "Click the map to select DESTINATION"
+            );
+        }
+    );
 
 // ========================================================
 // STATUS
@@ -936,14 +1118,21 @@ async function optimizeRoute() {
             "endLon"
         );
 
-    createLocationMarkers(
-        startLat,
-        startLon,
-        endLat,
-        endLon
-    );
-
     routeLayer.clearLayers();
+
+if (startMarker) {
+    map.removeLayer(
+        startMarker
+    );
+    startMarker = null;
+}
+
+if (endMarker) {
+    map.removeLayer(
+        endMarker
+    );
+    endMarker = null;
+}
 
     const info =
         document.getElementById(
@@ -980,7 +1169,12 @@ async function optimizeRoute() {
 
         const data =
             await response.json();
-
+        createLocationMarkers(
+    startLat,
+    startLon,
+    endLat,
+    endLon
+);
         drawRoutes(data);
 
         showRouteSummary(data);
@@ -1289,6 +1483,29 @@ function showError(
     message
 ) {
 
+    // Never leave an old route visible
+    // after a failed request.
+
+    routeLayer.clearLayers();
+
+    if (startMarker) {
+
+        map.removeLayer(
+            startMarker
+        );
+
+        startMarker = null;
+    }
+
+    if (endMarker) {
+
+        map.removeLayer(
+            endMarker
+        );
+
+        endMarker = null;
+    }
+
     document.getElementById(
         "routeInfo"
     ).innerHTML =
@@ -1296,7 +1513,6 @@ function showError(
             ${message}
         </div>`;
 }
-
 
 // ========================================================
 // CLEAR
