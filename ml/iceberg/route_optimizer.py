@@ -682,7 +682,7 @@ def nearest_sea_ice_observation(
     index = int(
         np.argmin(distances)
     )
-
+   
     return {
         "distance_km": float(
             distances[index]
@@ -1120,9 +1120,9 @@ def main():
     )
 
     destination = (
-        -65.0,
-        -45.0
-    )
+    -65.0,
+    -45.0
+)
 
     print()
     print(
@@ -1181,6 +1181,14 @@ def main():
         results[
             "distance_km"
         ].min()
+    )
+    if (
+    not np.isfinite(shortest_distance)
+    or shortest_distance <= 0.0
+):
+        raise ValueError(
+        "Start and destination must be different; "
+        "route distance must be greater than zero."
     )
 
     results[
