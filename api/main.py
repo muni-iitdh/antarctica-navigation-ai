@@ -274,51 +274,87 @@ def optimize_route(
     end_lon: float,
 ):
 
-    # Basic coordinate validation.
-    if not (
-        -90 <= start_lat <= 90
-        and -90 <= end_lat <= 90
-    ):
+    # -----------------------------------------------------
+    # BASIC COORDINATE VALIDATION
+    # -----------------------------------------------------
 
+    if not (
+        -90 <= start_lat <= -50
+        and -90 <= end_lat <= -50
+    ):
         raise HTTPException(
             status_code=400,
-            detail="Latitude must be between -90 and 90.",
+            detail=(
+                "Latitude must be between -90 and -50 "
+                "for the Antarctic operating region."
+            ),
         )
 
     if not (
         -180 <= start_lon <= 180
         and -180 <= end_lon <= 180
     ):
-
         raise HTTPException(
             status_code=400,
             detail="Longitude must be between -180 and 180.",
         )
 
-    if not ICEBERG_FILE.exists():
+    # -----------------------------------------------------
+    # REQUIRED DATA FILES
+    # -----------------------------------------------------
 
+    if not ICEBERG_FILE.exists():
         raise HTTPException(
             status_code=500,
             detail="Iceberg prediction data not found.",
         )
 
     if not SEA_ICE_FILE.exists():
-
         raise HTTPException(
             status_code=500,
             detail="Sea-ice data not found.",
         )
 
-    # Import the EXISTING route optimizer.
-    #
-    # We deliberately reuse its functions instead of
-    # duplicating the route-scoring mathematics here.
+    # -----------------------------------------------------
+    # IMPORT ROUTE OPTIMIZER FUNCTIONS
+    # -----------------------------------------------------
+
     from ml.iceberg.route_optimizer import (
         generate_candidate_routes,
         evaluate_route,
         prepare_sea_ice,
         select_sea_ice_date,
+        is_navigable_water,
+        route_is_over_water,
     )
+
+    # -----------------------------------------------------
+    # LAND / WATER VALIDATION
+    # -----------------------------------------------------
+
+    if not is_navigable_water(
+        start_lat,
+        start_lon
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Start location is on land. "
+                "Please select a navigable water location."
+            ),
+        )
+
+    if not is_navigable_water(
+        end_lat,
+        end_lon
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Destination is on land. "
+                "Please select a navigable water location."
+            ),
+        )
 
     # -----------------------------------------------------
     # LOAD DATA
@@ -328,8 +364,12 @@ def optimize_route(
         ICEBERG_FILE
     )
 
-    icebergs_all["Last Update"] = pd.to_datetime(
-        icebergs_all["Last Update"]
+    icebergs_all[
+        "Last Update"
+    ] = pd.to_datetime(
+        icebergs_all[
+            "Last Update"
+        ]
     )
 
     sea_ice_all = pd.read_csv(
@@ -341,7 +381,7 @@ def optimize_route(
     )
 
     # -----------------------------------------------------
-    # COMMON DATE
+    # FIND COMMON DATE
     # -----------------------------------------------------
 
     iceberg_dates = set(
@@ -363,7 +403,6 @@ def optimize_route(
     )
 
     if not common_dates:
-
         raise HTTPException(
             status_code=500,
             detail=(
@@ -373,6 +412,10 @@ def optimize_route(
         )
 
     analysis_date = common_dates[-1]
+
+    # -----------------------------------------------------
+    # CURRENT DATA SNAPSHOT
+    # -----------------------------------------------------
 
     icebergs = icebergs_all[
         icebergs_all[
@@ -387,7 +430,7 @@ def optimize_route(
     )
 
     # -----------------------------------------------------
-    # GENERATE CANDIDATES
+    # START / DESTINATION
     # -----------------------------------------------------
 
     start = (
@@ -400,10 +443,37 @@ def optimize_route(
         end_lon,
     )
 
+    # -----------------------------------------------------
+    # GENERATE CANDIDATE ROUTES
+    # -----------------------------------------------------
+
     routes = generate_candidate_routes(
         start,
         destination
     )
+
+    # -----------------------------------------------------
+    # REMOVE ROUTES THAT CROSS LAND
+    # -----------------------------------------------------
+
+    routes = {
+        name: route
+        for name, route in routes.items()
+        if route_is_over_water(route)
+    }
+
+    if not routes:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "No feasible water-only route exists "
+                "between the selected locations."
+            ),
+        )
+
+    # -----------------------------------------------------
+    # EVALUATE ROUTES
+    # -----------------------------------------------------
 
     results = []
 
@@ -443,6 +513,18 @@ def optimize_route(
             "distance_km"
         ].min()
     )
+
+    if (
+        pd.isna(shortest_distance)
+        or shortest_distance <= 0
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Start and destination must be different; "
+                "route distance must be greater than zero."
+            ),
+        )
 
     results_df[
         "distance_penalty"
@@ -499,7 +581,7 @@ def optimize_route(
         ] = True
 
     # -----------------------------------------------------
-    # RESPONSE
+    # BUILD RESPONSE
     # -----------------------------------------------------
 
     candidates = []

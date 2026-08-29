@@ -1,4 +1,5 @@
 from pathlib import Path
+from global_land_mask import globe
 
 import numpy as np
 import pandas as pd
@@ -324,7 +325,39 @@ def sample_route(
 # =========================================================
 # CANDIDATE ROUTES
 # =========================================================
+def is_navigable_water(lat, lon):
+    """
+    Return True if the coordinate is ocean.
+    Sea ice remains classified as ocean here;
+    sea-ice risk is handled separately.
+    """
+    return bool(
+        globe.is_ocean(
+            lat,
+            lon
+        )
+    )
 
+
+def route_is_over_water(route):
+    """
+    Return False if any sampled point along the route
+    falls on land.
+    """
+
+    samples = sample_route(
+        route
+    )
+
+    for lat, lon in samples:
+
+        if not is_navigable_water(
+            lat,
+            lon
+        ):
+            return False
+
+    return True
 def generate_candidate_routes(
     start,
     end
@@ -1143,6 +1176,11 @@ def main():
             destination
         )
     )
+    routes = {
+    name: route
+    for name, route in routes.items()
+    if route_is_over_water(route)
+}
 
     print()
     print(
