@@ -1,5 +1,3 @@
-Sure — here is the **plain-text version** of the README instructions, without the special formatting blocks. You can paste this directly into `README.md`:
-
 ANTARCTIC NAVIGATION AI
 
 AI/ML-Assisted Antarctic Navigation Decision Support System
